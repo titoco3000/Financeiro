@@ -1,243 +1,533 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.Events;
 using UnityEngine.EventSystems;
+using UnityEngine.Events;
+using UnityEngine.UI;
 
 public class Tabela : MonoBehaviour
 {
-    public enum TipoDeConteudo
+    [System.Serializable]
+    //(hovered item, hovered column)
+    public class TableEvent : UnityEvent<int,int>
     {
-        Float,
-        String,
-        Data,
-        Dinheiro,
-        Button
     }
-
-    public class Conteudo
-    {
-        public string Value;
-        public TipoDeConteudo Tipo;
-        public Conteudo(float f, TipoDeConteudo t)
-        {
-            Value = f.ToString();
-            Tipo = t;
-        }
-        public Conteudo(string s)
-        {
-            Value = s;
-            Tipo = TipoDeConteudo.String;
-        }
-        public Conteudo(Data d)
-        {
-            Value = d.ToString();
-            Tipo = TipoDeConteudo.Data;
-        }
-        public Conteudo()
-        {
-            Tipo = TipoDeConteudo.Button;
-        }
-    }
-
-    public class Coluna
+    public class Column
     {
         public string Title;
-        public TipoDeConteudo tipo;
-        public float largura;
-        public Coluna(string a,TipoDeConteudo b,float c)
+        public float Width;
+        public ColumnTypes Type;
+
+        public Column(string title, float width, ColumnTypes tipo)
         {
-            Title = a;
-            tipo = b;
-            largura = c;
+            Title = title;
+            Width = width;
+            Type = tipo;
         }
     }
 
-    public List<Coluna> colunas;
-
-    //referencias internas
-    public RectTransform TitlesBar;
-    public RectTransform Row;
-    public RectTransform content;
-
-    //prefabs editor
-    public GameObject titlePrefab;
-    public GameObject fieldPrefab;
-    public GameObject buttomPrefab;
-
-
-    public bool ExpandToFill = true;
-    public bool LimparTodaVez;
-    public bool EditButtomAllowed;
-
-    public int ExtraContentSize = 0;
-
-    private GameObject listItemPrefab;
-
-    public List<List<Conteudo>> tableContent;
-    private List<Vector3> localFieldPositions;
-
-    public int orderMethod = 0;
-
-    private int borderWidth = 2;
-
-    private void Start()
+    public struct TableItem
     {
-        content.GetComponent<GridLayoutGroup>().spacing = new Vector2(0, borderWidth);
+        public string Value;
+        public ColumnTypes Type;
+        public TableItem(string v)
+        {
+            Value = v;
+            Type = ColumnTypes.String;
+        }
+        public TableItem(Data d)
+        {
+            Value = d.ToString();
+            Type = ColumnTypes.Data;
+        }
+        public TableItem(float v)
+        {
+            Value = v.ToString(System.Globalization.CultureInfo.InvariantCulture).Replace(".", ",");
+            Type = ColumnTypes.Float;
+        }
+    }
+    public enum ColumnTypes
+    {
+        String,
+        Float,
+        Data,
     }
 
-    public void Preparar(List<Coluna> c)
+    private List<Column> colunas;
+    public List<List<TableItem>> tableContent;
+
+    public float RowHeight = 15f;
+    public int Margin = 2;
+    public float sensitivity;
+
+    public Scrollbar scrollBar;
+    public Scrollbar visibleScrollBar;
+
+    public RectTransform Header;
+    private RectTransform Rect;
+    private Canvas Canvas;
+
+    public RectTransform ScrollView;
+    public GridLayoutGroup grid;
+    public RectTransform RightClickMenu;
+
+    public Font Font;
+
+    public bool preparado;
+
+    private int realRows;
+    private int totalBlocks;
+
+    public int firstVisibleIndex = 0;
+    public List<Text[]> TableFields;
+
+    private List<Image> RowBackground;
+
+    public TableEvent RightClickOptions;
+
+    public int HoveredItemIndex, HoveredColumn;
+
+
+    //Default functions
+    public void Localizar(int a,int b)
     {
-        colunas = c;
+        FindMenu.transform.parent.gameObject.SetActive(true);
+        FindMenu.Select();
+    }
+    public void Copiar(int a, int b)
+    {
+        TextEditor te = new TextEditor();
+        if (tableContent.Count > a)
+            te.text = tableContent[b][a].Value ;
+        else
+            te.text = "";
+
+        te.SelectAll();
+        te.Copy();
+    }
+
+    public void ApplyEfect(int i)
+    {
+        for (int k = 0; k < RightClickOptions.GetPersistentEventCount(); k++)
+        {
+            if (k != i)
+                RightClickOptions.SetPersistentListenerState(k, UnityEventCallState.Off);
+            else
+                RightClickOptions.SetPersistentListenerState(k, UnityEventCallState.RuntimeOnly);
+        }
+        RightClickOptions.Invoke(HoveredColumn,HoveredItemIndex);
+    }
+    IEnumerator HideRightClick()
+    {
+        yield return new WaitForSeconds(0.1f);
+        RightClickMenu.gameObject.SetActive(false);
+    }
+
+    public void Preparar(List<Column> novasColunas)
+    {
+        colunas = novasColunas;
+
+        tableContent = new List<List<TableItem>>();
+
+        SearchResults = new List<int>();
+
+        Rect = GetComponent<RectTransform>();
+        Canvas = transform.root.GetComponent<Canvas>();
+
+        //normalizar as dimensoes
+        float total = 0;
+        for (int i = 0; i < colunas.Count; i++)
+        {
+            total += colunas[i].Width;
+        }
+        float prop = 1 / total;
+        for (int i = 0; i < colunas.Count; i++)
+        {
+            colunas[i].Width*= prop;
+        }
+
+
+        //cria um row-modelo
+        GameObject RowPrefab = new GameObject("row", typeof(Image));
+        RowPrefab.transform.SetParent( grid.transform);
+        RowPrefab.transform.localScale = Vector3.one;
+
+        //Titulo-modelo
+        GameObject titlePrefab = Header.GetChild(0).gameObject;
+
+        Color barraColor = gameObject.GetComponent<Image>().color;
+
+        float totalMarginsWidth = (colunas.Count - 1) * Margin;
+
+        //arruma o row-modelo e arruma o header
+        float xPos = -ScrollView.sizeDelta.x/2 + Margin;
+        for (int i = 0; i < colunas.Count; i++)
+        {
+            xPos += colunas[i].Width * ScrollView.sizeDelta.x/2;
+
+            RectTransform txtObj = new GameObject("text", typeof(Text)).GetComponent<RectTransform>();
+            txtObj.SetParent(RowPrefab.transform);
+            
+            
+
+            RectTransform Title = Instantiate(titlePrefab, Header).GetComponent<RectTransform>();
+            Title.name = i.ToString();
+
+            
+            txtObj.sizeDelta = new Vector2(colunas[i].Width * (ScrollView.sizeDelta.x -totalMarginsWidth ), RowHeight);
+            Title.sizeDelta = new Vector2(colunas[i].Width * (ScrollView.sizeDelta.x - totalMarginsWidth), Header.sizeDelta.y);
+
+
+            txtObj.localPosition = new Vector3(xPos, 0);
+            Title.localPosition = new Vector3(xPos-Margin, 0);
+
+
+            Text txt = txtObj.GetComponent<Text>();
+            txt.font = Font;
+            txt.color = Color.black;
+            txt.alignment = TextAnchor.MiddleLeft;
+            txt.resizeTextForBestFit = true;
+            txt.resizeTextMinSize = (int)(RowHeight / 2);
+
+            Title.GetComponentInChildren<Text>().text = colunas[i].Title;
+            
+            xPos += colunas[i].Width * ScrollView.sizeDelta.x/2;
+
+            if (i < colunas.Count - 1)
+            {
+                RectTransform barra = new GameObject("Barra", typeof(RectTransform)).GetComponent<RectTransform>();
+                barra.SetParent(Header);
+                barra.gameObject.AddComponent<Image>().color = barraColor;
+                barra.sizeDelta = new Vector2(Margin, Rect.sizeDelta.y);
+                barra.localPosition = new Vector3(xPos-(Margin/2), 0);
+
+                barra.position = new Vector3(barra.position.x, Rect.position.y, 0);
+
+            }
+
+
+        }
+
+        //deleta o titulo-modelo
+        Destroy(titlePrefab);
+
+
+        grid.cellSize = new Vector2( Rect.sizeDelta.x ,RowHeight);
+        grid.spacing = new Vector2(Margin, Margin);
+
+        realRows  = (int)(ScrollView.sizeDelta.y / (RowHeight+Margin)) +1;
+        ScrollView.sizeDelta = new Vector2(ScrollView.sizeDelta.x, (realRows-1) * (RowHeight + Margin));
+
+
+        //cria os rows vazios
+        RowBackground = new List<Image>();
+        TableFields = new List<Text[]>();
+        for (int i = 0; i < realRows; i++)
+        {
+            GameObject newRow = Instantiate(RowPrefab, grid.transform);
+            newRow.SetActive(true);
+
+
+            Text[] childstext = newRow.GetComponentsInChildren<Text>();
+            TableFields.Add(childstext);
+            RowBackground.Add(newRow.GetComponent<Image>());
+
+        }
+
+        //deleta o row-modelo
+        Destroy(RowPrefab);
+
+
+        RectTransform content = grid.GetComponent<RectTransform>();
+        content.sizeDelta = new Vector2(content.sizeDelta.x, realRows * (Margin + RowHeight));
+
+        RightClickSetup();
+
+        FindMenu.transform.parent.gameObject.SetActive(false);
+
+
+        preparado = true;
+    }
+
+    public void Desenhar(List<List<TableItem>> novoConteudo )
+    {
+        tableContent = novoConteudo;
+
         
-        //adapta as larguras para ocupar toda a tabela
-        if (ExpandToFill)
-        {
-            float somatorio = 0;
-            foreach (Coluna item in colunas)
-            {
-                somatorio += item.largura;
-            }
-            float prop = TitlesBar.sizeDelta.x / somatorio;
-            for (int i = 0; i < colunas.Count; i++)
-            {
-                colunas[i].largura *= prop;
-                colunas[i].largura -= borderWidth;
 
-            }
-        }
-        Preparar();
+        SortBy(0);
     }
-    public void Preparar()
+    public void UpdateTableVisual()
     {
-        //limpa os títulos anteriores
-        foreach (Transform child in TitlesBar)
-        {
-            Destroy(child.gameObject);
-        }
-        localFieldPositions = new List<Vector3>();
+        totalBlocks = (tableContent.Count >= realRows ? tableContent.Count - realRows + 1 : 1);
 
-        //limpa o prefab da linha
-        foreach (Transform  child in Row)
-        {
-            Destroy(child.gameObject);
-        }
-
-            
-            //desenha cada um dos titulos
-            float distanciaAtual = -TitlesBar.sizeDelta.x / 2;       
-            for (int i = 0; i < colunas.Count; i++)
-            {
-                GameObject titleObj = Instantiate(titlePrefab, TitlesBar);
-                titleObj.name = i.ToString();
-                distanciaAtual += colunas[i].largura / 2 + borderWidth;
-                RectTransform rt = titleObj.GetComponent<RectTransform>();
-                rt.sizeDelta = new Vector2(colunas[i].largura, TitlesBar.sizeDelta.y);
-                titleObj.transform.localPosition = new Vector2(distanciaAtual , 0);
-                titleObj.GetComponentInChildren<Text>().text = colunas[i].Title;
-            
-                //prefab da linha
-                RectTransform field = Instantiate((colunas[i].tipo == TipoDeConteudo.Button? buttomPrefab : fieldPrefab), Row).GetComponent<RectTransform>();
-            
-                field.sizeDelta = rt.sizeDelta;
-                field.transform.localPosition = titleObj.transform.localPosition;
-                localFieldPositions.Add(field.transform.localPosition);
-            
-            
-                distanciaAtual += colunas[i].largura / 2;
-
-            }
-        
-        Row.gameObject.SetActive(false);
-
+        visibleScrollBar.size = Mathf.Max(0.1f, 1f / totalBlocks);
+        GoTo(firstVisibleIndex);
+        OnScroll();
     }
 
-    public void Desenhar(List<List<Conteudo>> conteudos)
+    private void Update()
     {
-        tableContent = conteudos;
-        Desenhar();
-    }
-    public void Desenhar()
-    {
-        //limpa conteudos anteriores
-        for (int i = content.childCount-1; i > 0; i--)
+        if (Mouse.IsHovering(gameObject) && totalBlocks > 1)
         {
-            Destroy(content.GetChild(i).gameObject);
+            //desce um bloco por vez no scroll do mouse
+            visibleScrollBar.value = Mathf.Clamp01(visibleScrollBar.value - Input.mouseScrollDelta.y * sensitivity/totalBlocks);
         }
 
-        //organiza a tabela
-        SortContent();
-
-        float contentHeight = 0;
-        int k = 0;
-        foreach (List<Conteudo> valorDaLinha in tableContent)
+        if (Input.GetMouseButtonUp(0))
         {
-            Transform linha = Instantiate(Row, content).transform;
-            for (int i = 0; i < linha.childCount; i++)
+            StartCoroutine(HideRightClick());
+        }
+        else if (Input.GetMouseButtonUp(1) && Mouse.IsHovering(ScrollView.gameObject))
+        {
+            //ativa o menu de right-click
+            RightClickMenu.gameObject.SetActive(true);
+
+            //pos do mouse
+            Vector2 pos;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(ScrollView as RectTransform, Input.mousePosition, Canvas.worldCamera, out pos);
+
+            RightClickMenu.position = ScrollView.TransformPoint(pos) + new Vector3(RightClickMenu.sizeDelta.x / 2, RightClickMenu.sizeDelta.y / 2);
+
+            Vector2Int clickInfo = GetHoveredInfo(pos);
+
+            HoveredColumn = clickInfo.x;
+            HoveredItemIndex = clickInfo.y;
+        }
+        else if ((Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftControl)) && Input.GetKeyDown(KeyCode.F))
+        {
+            // CTRL + F
+            Localizar(0, 0);
+            StartCoroutine(HideRightClick());
+        }
+        else if (Input.GetKey(KeyCode.Escape)){
+            StartCoroutine(HideRightClick());
+            HideSearch();
+        }
+    }
+
+    private Vector2Int GetHoveredInfo(Vector2 mouseCoordinates)
+    {
+        Vector2Int retorno = Vector2Int.zero;
+
+        retorno.y = firstVisibleIndex + Mathf.RoundToInt(1-scrollBar.value) + (int)((-(mouseCoordinates.y - (ScrollView.sizeDelta.y / 2))) / ScrollView.sizeDelta.y * (realRows - 1));
+
+        float mouseX = (mouseCoordinates.x + (ScrollView.sizeDelta.x / 2)) / ScrollView.sizeDelta.x;
+
+        float somatorio = 0;
+        for (int i = 0; i < colunas.Count; i++)
+        {
+            somatorio += colunas[i].Width;
+            if (mouseX < somatorio)
             {
-                linha.GetChild(i).transform.localPosition = localFieldPositions[i];
-                Text field = linha.GetChild(i).GetComponentInChildren<Text>();
-                field.text = valorDaLinha[i].Value;
-                
-                if(valorDaLinha[i].Tipo == TipoDeConteudo.Dinheiro)
+                retorno.x = i;
+                return retorno;
+            }
+        }
+
+        return retorno;
+
+    }
+
+    public void PopulateTableFrom(int start)
+    {
+        for (int i = 0; i < TableFields.Count ; i++)
+        {
+            for (int j = 0; j < colunas.Count; j++)
+            {
+
+                if(tableContent.Count > i + start)
                 {
-                    //adiciona um filtro
-                    field.text = FormatarParaReal(field.text);
+                    TableFields[i][j].text = tableContent[start + i][j].Value;
                 }
-                else if (valorDaLinha[i].Tipo == TipoDeConteudo.Button)
+                else
                 {
-                    linha.GetChild(i).name = k.ToString();
-                    linha.GetChild(i).GetComponent<TableActionButton>().Tabela = this;
-
+                    TableFields[i][j].text = "";
                 }
             }
-            linha.gameObject.SetActive(true);
-            contentHeight += 30;
-            k++;
         }
-        content.sizeDelta = new Vector2(content.sizeDelta.x, contentHeight + ExtraContentSize); 
+
+    }
+    public void OnScroll()
+    {
+        if (preparado)
+        {
+            firstVisibleIndex = (int)(visibleScrollBar.value * totalBlocks);
+
+            float visiblePart = (visibleScrollBar.value * totalBlocks) - firstVisibleIndex;
+
+            scrollBar.value = 1-visiblePart;
+
+            PopulateTableFrom(firstVisibleIndex);
+            RemoveHighlight();
+        }
     }
 
-
-    public void ChangeSortingMethod(int i)
+    int orderMethod = 0;
+    bool inverseOrdering = false;
+    public void SortBy(int f)
     {
-        //muda o método
-        if (orderMethod == i)
-            return;
-        orderMethod = i;
+        RemoveHighlight();
 
-        //redesenha
-        Desenhar();
+        if(f == orderMethod)
+            inverseOrdering = !inverseOrdering;
+        else
+            inverseOrdering = false;
+
+        orderMethod = f;
+
+        if (inverseOrdering)
+        {
+            if (colunas[orderMethod].Type == ColumnTypes.String)
+                tableContent.Sort((b, a) => a[orderMethod].Value.CompareTo(b[orderMethod].Value));
+            else if (colunas[orderMethod].Type == ColumnTypes.Float)
+                tableContent.Sort((a, b) => float.Parse(b[orderMethod].Value).CompareTo(float.Parse(a[orderMethod].Value, System.Globalization.CultureInfo.InvariantCulture)));
+            else if (colunas[orderMethod].Type == ColumnTypes.Data)
+                tableContent.Sort((a, b) => new Data(b[orderMethod].Value).CompareTo(new Data(a[orderMethod].Value)));
+        }
+        else
+        {
+
+            if (colunas[orderMethod].Type == ColumnTypes.String)
+                tableContent.Sort((a, b) => a[orderMethod].Value.CompareTo(b[orderMethod].Value));
+            else if (colunas[orderMethod].Type == ColumnTypes.Float)
+                tableContent.Sort((b, a) => float.Parse(b[orderMethod].Value).CompareTo(float.Parse(a[orderMethod].Value, System.Globalization.CultureInfo.InvariantCulture)));
+            else if (colunas[orderMethod].Type == ColumnTypes.Data)
+                tableContent.Sort((b, a) => new Data(b[orderMethod].Value).CompareTo(new Data(a[orderMethod].Value)));
+        }
+        PopulateTableFrom(firstVisibleIndex);
         
     }
 
-    public void SortContent()
+    private void RightClickSetup()
     {
-        if (colunas[orderMethod].tipo == TipoDeConteudo.String)
-            tableContent.Sort((a, b) => a[orderMethod].Value.CompareTo(b[orderMethod].Value));
-        else if (colunas[orderMethod].tipo == TipoDeConteudo.Float)
-            tableContent.Sort((a, b) => float.Parse(b[orderMethod].Value).CompareTo(float.Parse(a[orderMethod].Value)));
-        else if (colunas[orderMethod].tipo == TipoDeConteudo.Data)
-            tableContent.Sort((a, b) =>  new Data(b[orderMethod].Value).CompareTo(new Data(a[orderMethod].Value)));
+        //Arruma o quadro de right click
+        int numOfOptions = RightClickOptions.GetPersistentEventCount();
+        if (numOfOptions > 0)
+        {
+            GameObject originalButtom = RightClickMenu.GetChild(0).gameObject;
+            for (int l = 0; l < numOfOptions; l++)
+            {
+                GameObject effectButtom = (l == 0 ? originalButtom : Instantiate(originalButtom, RightClickMenu.transform));
+                effectButtom.GetComponentInChildren<Text>().text = RightClickOptions.GetPersistentMethodName(l);
+                effectButtom.name = l.ToString();
 
+            }
+            RightClickMenu.sizeDelta = new Vector2(RightClickMenu.sizeDelta.x, RowHeight * numOfOptions);
+            RightClickMenu.SetAsLastSibling();
+        }
+        RightClickMenu.gameObject.SetActive(false);
     }
 
-    public virtual void ButtomMethod(int i)
+    bool theresABlockHighlighted = false;
+
+    public void Highlight(int index)
     {
-        Debug.Log("Row " + i + " selecionado");
-    } 
+        RemoveHighlight();
 
-    private string FormatarParaReal(string s)
-    {
-        float f = float.Parse(s);
-        string r = f.ToString("C");
-        r = r.Substring(1, r.Length - 1);
-        r = r.Replace(",", ".");
+        GoTo(index);
 
-        int i = r.LastIndexOf(".");
-        r = r.Substring(0, i) +","+ r.Substring(i+1, r.Length - i-1);
+        int targettedBlock = index - firstVisibleIndex;
+        
+        RowBackground[targettedBlock].color = Color.yellow;
 
-        return r;
+        theresABlockHighlighted = true;
     }
+
+    public void RemoveHighlight()
+    {
+        if (theresABlockHighlighted)
+        {
+            foreach (var item in RowBackground)
+            {
+                item.color = Color.white;
+            }
+        }
+    }
+
+    public void GoTo(int index)
+    {
+        float valor = ((float)(index) / tableContent.Count);
+        
+        valor += (1f/ tableContent.Count)*valor*(realRows);
+
+        valor = Mathf.Clamp01(valor);
+
+        visibleScrollBar.value = valor;
+        scrollBar.value = 1;
+        OnScroll();
+    }
+
+
+
+    //findMenu
+    public InputField FindMenu;
+    private int currentSearchIndex;
+    private List<int> SearchResults;
+    private Text indicadorNumeroDeResultados;
+    public void OnSearchEnter(string search)
+    {
+        currentSearchIndex = 0;
+        SearchResults = new List<int>();
+        int prioridade = HoveredColumn;
+        for (int i = 0; i < tableContent.Count; i++)
+        {
+            if (tableContent[i][prioridade].Value.ToLower().Contains(search))
+            {
+                SearchResults.Add(i);
+            }
+        }
+
+        for (int k = 0; k < colunas.Count; k++)
+        {
+            if (k != prioridade)
+            {
+                for (int i = 0; i < tableContent.Count; i++)
+                {
+                    if (tableContent[i][k].Value.ToLower().Contains(search))
+                    {
+                        SearchResults.Add(i);
+                    }
+                }
+            }
+        }
+
+        if (!indicadorNumeroDeResultados)
+            indicadorNumeroDeResultados = FindMenu.transform.parent.GetChild(4).GetComponent<Text>();
+
+        indicadorNumeroDeResultados.text = "(" + (SearchResults.Count>999?"999+":SearchResults.Count.ToString()) + " resultados)";
+
+
+        if (SearchResults.Count > 0)
+        {
+            Highlight(SearchResults[0]);
+        }
+        else
+            RemoveHighlight();
+    }
+    public void HideSearch()
+    {
+        FindMenu.transform.parent.gameObject.SetActive(false);
+    }
+    public void UpSearch()
+    {
+        if (SearchResults.Count > 0)
+        {
+            currentSearchIndex--;
+            if (currentSearchIndex < 0)
+                currentSearchIndex = SearchResults.Count - 1;
+            Highlight(SearchResults[currentSearchIndex]);
+        }
+    }
+    public void DownSearch()
+    {
+        if (SearchResults.Count > 0)
+        {
+            currentSearchIndex++;
+            if (currentSearchIndex > SearchResults.Count - 1)
+                currentSearchIndex = 0;
+            Highlight(SearchResults[currentSearchIndex]);
+        }
+    }
+
 }

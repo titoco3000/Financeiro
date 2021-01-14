@@ -24,4 +24,14 @@ public static class Mouse
         }
         return false;
     }
+
+    public static string AllHovered()
+    {
+        string a = "(";
+        foreach (var item in GetEventSystemRaycastResults())
+        {
+            a = a + item.gameObject.name + ",";
+        }
+        return a.Substring(0,a.Length-1)+")";
+    }
 }

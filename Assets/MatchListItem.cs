@@ -11,7 +11,8 @@ public class MatchListItem : MonoBehaviour
     public Text label;
     public void OnClick()
     {
-        GameObject f = GameObject.Find("Nome do Fornecedor");
-        f.GetComponent<Input_NomeDoFornecedor>().Autocompletar(label.text);
+        transform.parent.parent.parent.parent.GetComponent<AutocompleteField>().Autocompletar(label.text);
+        //GameObject f = GameObject.Find("Nome do Fornecedor");
+        //f.GetComponent<Input_NomeDoFornecedor>().Autocompletar(label.text);
     }
 }

@@ -75,7 +75,7 @@ public static class StorageManager
     public static void SalvarCompra(Compra novaCompra)
     {        
         //trata a nova compra
-        string novaLinha = novaCompra.Fornecedor + "," + novaCompra.Area.ToString() + "," + novaCompra.Data + "," + novaCompra.Valor.ToString().Replace(",",".") + ","+novaCompra.Pagamento.ToString()+","+novaCompra.NotaFiscal+","+novaCompra.Banco+","+novaCompra.Obs ;
+        string novaLinha = novaCompra.Fornecedor + "," + novaCompra.Area.ToString() + "," + novaCompra.Data + "," + novaCompra.Valor.ToString(System.Globalization.CultureInfo.InvariantCulture).Replace(",",".") + ","+novaCompra.Pagamento.ToString()+","+novaCompra.NotaFiscal+","+novaCompra.Banco+","+novaCompra.Obs ;
         //carrega as compras anteriores
         string arquivo = File.ReadAllText(Path + "compras.csv");
         //adiciona a nova compra
@@ -103,7 +103,7 @@ public static class StorageManager
         string txt = "";
         foreach (var novaCompra in compras)
         {
-            txt = txt+ "\n" + novaCompra.Fornecedor + "," + novaCompra.Area.ToString() + "," + novaCompra.Data + "," + novaCompra.Valor.ToString().Replace(",",".") + "," + novaCompra.Pagamento.ToString() + "," + novaCompra.NotaFiscal + "," + novaCompra.Banco + "," + novaCompra.Obs;
+            txt = txt+ "\n" + novaCompra.Fornecedor + "," + novaCompra.Area.ToString() + "," + novaCompra.Data + "," + novaCompra.Valor.ToString(System.Globalization.CultureInfo.InvariantCulture).Replace(",",".") + "," + novaCompra.Pagamento.ToString() + "," + novaCompra.NotaFiscal + "," + novaCompra.Banco + "," + novaCompra.Obs;
         }
         //salva o arquivo
         File.WriteAllText(Path + "compras.csv", txt);
@@ -119,8 +119,6 @@ public static class StorageManager
         }
 
         File.WriteAllText(Path + "fornecedores.csv", doc);
-
-        Debug.Log("fornecedores salvos");
     }
 
     private static void EnsureFileExists(string filePath,string fileName)

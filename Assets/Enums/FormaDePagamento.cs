@@ -6,5 +6,6 @@ public enum FormaDePagamento
 {
     CartaoDeCredito,
     Ted,
-    Boleto
+    Boleto,
+    Cheque
 }

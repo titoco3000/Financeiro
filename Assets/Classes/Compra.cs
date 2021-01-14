@@ -31,11 +31,11 @@ public class Compra
         return Fornecedor + ", " + Area.ToString() + ", " + Data + ", " + Valor;
     }
 
-    public static int LocateInList(List<Compra> lista, int notaFiscal)
+    public static int LocateInList(List<Compra> lista, string Nome , int notaFiscal)
     {
         for (int i = 0; i < lista.Count; i++)
         {
-            if (lista[i].NotaFiscal == notaFiscal)
+            if (lista[i].NotaFiscal == notaFiscal && lista[i].Fornecedor == Nome)
                 return i;
         }
         return -1;
