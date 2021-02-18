@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using System.Text.RegularExpressions;
+using System.IO;
 
 public static class Ultilities 
 {
@@ -47,5 +48,39 @@ public static class Ultilities
     public static float ParseFloat(string s)
     {
         return float.Parse(Ultilities.PadraoAmericano(s), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public static bool IsFileLocked(string filename)
+    {
+        bool Locked = false;
+        try
+        {
+            FileStream fs =
+                File.Open(filename, FileMode.OpenOrCreate,
+                FileAccess.ReadWrite, FileShare.None);
+            fs.Close();
+        }
+        catch
+        {
+            Locked = true;
+        }
+        return Locked;
+    }
+
+    public static void PopUp(string msg)
+    {
+        Object.Instantiate(Resources.Load("Popup") as GameObject).GetComponent<PopUp>().Setup(msg);
+        Debug.Log("popup");
+    }
+    public static string[][] ParseCSV(string csv)
+    {
+        string[] linhas = csv.Split("\n"[0]);
+        string[][] retorno = new string[linhas.Length][];
+        for (int i = 0; i < linhas.Length; i++)
+        {
+            
+            retorno[i] = linhas[i].Trim().Split(","[0]);
+        }
+        return retorno;
     }
 }

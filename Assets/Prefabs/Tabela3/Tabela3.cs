@@ -5,8 +5,13 @@ using UnityEngine.UI;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 
+
 public class Tabela3 : MonoBehaviour
 {
+
+
+
+
     #region classes
     [System.Serializable]
     //(hovered item, hovered column)
@@ -87,7 +92,7 @@ public class Tabela3 : MonoBehaviour
 
     public Coluna[] Colunas;
 
-    public List<List<TableItem>> tableContent;
+    public List<List<Tabela3.TableItem>> tableContent;
 
     public List<List<Campo>> Campos;
 
@@ -136,11 +141,23 @@ public class Tabela3 : MonoBehaviour
             Localizar(0, 0);
             StartCoroutine(HideRightClick());
         }
+        else if ((Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftControl)) && Input.GetKeyDown(KeyCode.F))
+        {
+            // CTRL + P
+            Imprimir(0, 0);
+            StartCoroutine(HideRightClick());
+            HideSearch();
+        }
         else if (Input.GetKey(KeyCode.Escape))
         {
             StartCoroutine(HideRightClick());
             HideSearch();
         }
+    }
+
+    private void OnDisable()
+    {
+        tableContent = new List<List<TableItem>>();
     }
 
     public void ApplyEfect(int i)
@@ -407,6 +424,10 @@ public class Tabela3 : MonoBehaviour
         FindMenu.transform.parent.gameObject.SetActive(true);
         StartCoroutine(SelectSearch());
     }
+    public void Imprimir(int a, int b)
+    {
+        Printer.Print(Colunas, tableContent.GetRange(firstVisibleIndex,numeroDeRows));
+    }
     public void Copiar(int a, int b)
     {
         TextEditor te = new TextEditor();
@@ -417,6 +438,12 @@ public class Tabela3 : MonoBehaviour
 
         te.SelectAll();
         te.Copy();
+    }
+    public void Exportar(int a, int b)
+    {
+
+        FindObjectOfType<ExcelFileManager>().SaveExcel(Colunas, tableContent);
+        StartCoroutine(HideRightClick());
     }
     #endregion
 

@@ -18,8 +18,10 @@ public static class LogFile
         {
             File.Create(StorageManager.Path + "Log.txt");
         }
-
-        txt = txt + "\n [" + origin.ToString() + "]\n";
+        if(origin == null)
+            txt = txt + "\n [??]\n";
+        else
+            txt = txt + "\n [" + origin.ToString() + "]\n";
 
         Debug.Log(txt);
         doc +=  txt;

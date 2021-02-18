@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Financeiro Aldeia"
-#define MyAppVersion "1.3"
+#define MyAppVersion "1.6"
 #define MyAppPublisher "Tito"
 #define MyAppURL "https://sahy.tur.br/"
 #define MyAppExeName "Financeiro.exe"
