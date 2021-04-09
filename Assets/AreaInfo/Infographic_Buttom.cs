@@ -21,7 +21,6 @@ public class Infographic_Buttom : MonoBehaviour
         Ativo = true;
         if(infografico == null)
         {
-
             if(prefab != null)
                 infografico = Instantiate(prefab,WhereToPlace).GetComponent<Infographic>();
         }

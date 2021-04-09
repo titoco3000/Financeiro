@@ -107,7 +107,7 @@ MonoBehaviour:
   currentPoint: 0
   cycling: 0
   cycleSpeed: 30
-  mouseWaitTime: 2
+  mouseWaitTime: 1
   round: 0
 --- !u!114 &2364275466070778249
 MonoBehaviour:
@@ -336,7 +336,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "T\xEDtulo"
+  m_Text: 
 --- !u!1 &6559382776705227664
 GameObject:
   m_ObjectHideFlags: 0
@@ -428,6 +428,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Navigation:
     m_Mode: 0
+    m_WrapAround: 0
     m_SelectOnUp: {fileID: 0}
     m_SelectOnDown: {fileID: 0}
     m_SelectOnLeft: {fileID: 0}
@@ -491,8 +492,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -59.132202, y: 0}
-  m_SizeDelta: {x: -118.264404, y: 0}
+  m_AnchoredPosition: {x: -63.132202, y: 0}
+  m_SizeDelta: {x: -126.264404, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &421250712945309335
 CanvasRenderer:
@@ -535,4 +536,4 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: C
+  m_Text: 

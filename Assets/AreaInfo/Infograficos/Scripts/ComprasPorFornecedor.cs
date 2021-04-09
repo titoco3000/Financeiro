@@ -9,14 +9,44 @@ public class ComprasPorFornecedor : Infographic
     public Tabela3 table;
     List<Compra> comprasPassiveis;
 
+    bool jaExistia = false;
+
     public override void Setup(List<Compra> compras)
     {
         base.Setup(compras);
         comprasPassiveis = compras;
-        Desenhar();
+        StartCoroutine(Desenhar());
+
     }
-    public void Desenhar()
+
+    public IEnumerator Desenhar()
     {
+        yield return 0;
+
+        if (jaExistia)
+        {
+            print("mudando fornecedor");
+            PlayerPrefs.SetString("FornecedorCpF", input.field.text);
+        }
+        else
+        {
+            print("mudando outra coisa");
+            string lastName = PlayerPrefs.GetString("FornecedorCpF");
+            if (input.ValoresASeremProcurados.Contains(lastName))
+            {
+                print("Possuia o nome " + lastName);
+                input.field.text = lastName;
+            }
+            else
+            {
+                print("Não possuia o nome " + lastName);
+            }
+        }
+
+        jaExistia = true;
+
+        //PlayerPrefs.SetString("FornecedorCpF", input.field.text);
+
         //prepara o conteudo da tabela
         List<List<Tabela3.TableItem>> tableContent = new List<List<Tabela3.TableItem>>();
 

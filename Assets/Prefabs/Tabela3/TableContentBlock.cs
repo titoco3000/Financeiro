@@ -17,7 +17,7 @@ public class TableContentBlock : MonoBehaviour
     public float currentPoint = 0;
     public bool cycling = false;
     public float cycleSpeed = 10f;
-    public float mouseWaitTime = 2f;
+    private float mouseWaitTime = 1f;
     public float round = 0f;
 
     private void Update()

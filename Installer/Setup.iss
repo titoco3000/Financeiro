@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Financeiro Aldeia"
-#define MyAppVersion "1.6"
+#define MyAppVersion "1.7.1"
 #define MyAppPublisher "Tito"
 #define MyAppURL "https://sahy.tur.br/"
 #define MyAppExeName "Financeiro.exe"
@@ -36,6 +36,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "D:\Documents\Dev\Unity Projects\Financeiro\Build\Financeiro.exe"; DestDir: "{app}"; Flags: ignoreversion
+; para por mais de um programa
+Source: "D:\Documents\Dev\Unity Projects\Financeiro\Assets\converter.exe"; DestDir: "{app}"; Flags: ignoreversion    
 Source: "D:\\Documents\Dev\Unity Projects\Financeiro\Build\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 

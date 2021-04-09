@@ -11,7 +11,6 @@ public class GastoPorFornecedor : Infographic
 
     public override void Setup(List<Compra> compras)
     {
-
         List<string> fornecedores = new List<string>();
         List<float> gastoTotal = new List<float>();
         List<int> numeroDeCompras = new List<int>();

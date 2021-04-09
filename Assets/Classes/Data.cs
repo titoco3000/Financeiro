@@ -161,11 +161,12 @@ public struct Data
 
     public static bool IsValid(string data)
     {
-        if( System.DateTime.TryParse(data, out System.DateTime temp))
+        System.Globalization.CultureInfo br = new System.Globalization.CultureInfo("pt-BR");
+
+        if (System.DateTime.TryParseExact(data, "dd/MM/yy", br, System.Globalization.DateTimeStyles.NoCurrentDateDefault, out System.DateTime temp))
         {
             return true;
         }
-
         return false;
     }
 

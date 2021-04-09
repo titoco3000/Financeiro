@@ -141,5 +141,4 @@ public static class StorageManager
         EnsureFileExists(Path, "compras.csv");
         EnsureFileExists(Path, "fornecedores.csv");
     }
-
 }

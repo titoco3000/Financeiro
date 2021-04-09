@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using System.Collections;
-using OfficeOpenXml;
 using System.IO;
 using System.Collections.Generic;
 using LitJson;
@@ -37,22 +36,15 @@ public class ExcelFileManager:MonoBehaviour
         {
             for (int j = 0; j < content[i].Count; j++)
             {
-                CSVcontent += content[i][j].Value;
+                CSVcontent += content[i][j].Value.Replace(",",".");
                 if (j != content[i].Count - 1)
                     CSVcontent += ",";
             }
             if (i != content.Count- 1)
                 CSVcontent += "\n";
         }
-        print(CSVtitles);
-        print(CSVcontent);
-
+       
         StartCoroutine(SaveExcel(CSVtitles, CSVcontent));
-    }
-
-    public bool SaveExcel(string path, string titles, string content)
-    {
-        return true;
     }
 
     private IEnumerator SaveExcel(string titles, string content)
@@ -61,70 +53,44 @@ public class ExcelFileManager:MonoBehaviour
         
         if (FileBrowser.Success)
         {
-            print(FileBrowser.Result[0]);
-            Excel xls = new Excel();
-            ExcelTable table = new ExcelTable();
-            table.TableName = "test";
-            string outputPath = FileBrowser.Result[0];
-            xls.Tables.Add(table);
-
-            string[][] parsedTitles = Ultilities.ParseCSV(titles);
-            for (int i = 0; i < parsedTitles[0].Length; i++)
+            try
             {
-                xls.Tables[0].SetValue(1, 1 + i, parsedTitles[0][i]);
-            }
 
-            string[][] parsedContent = Ultilities.ParseCSV(content);
-            for (int i = 0; i < parsedContent.Length; i++)
-            {
-                for (int j = 0; j < parsedContent[i].Length; j++)
+                File.WriteAllText(FileBrowser.Result[0].Substring(0, FileBrowser.Result[0].Length - 4) + "csv", titles + "\n" + content);
+
+                string cmd = Path.GetDirectoryName(Application.dataPath) + "/converter.exe";
+
+
+                string[] adress = cmd.Split("/"[0]);
+                cmd = "";
+                for (int i = 0; i < adress.Length; i++)
                 {
-                    xls.Tables[0].SetValue(2+i, 1 + j, parsedContent[i][j]);
-
+                    if (adress[i].Contains(" "))
+                    {
+                        adress[i] = "\"" + adress[i] + "\"";
+                    }
+                    cmd += adress[i]+"/";
                 }
-            }
+                cmd = cmd.Substring(0, cmd.Length - 1);
+                
+                
 
-            xls.ShowLog();
-            if (Ultilities.IsFileLocked(outputPath))
-            {
-                Ultilities.PopUp("O arquivo está aberto em outro programa. Feche-o e tente novamente");
-                yield break;
+                string origin = FileBrowser.Result[0].Substring(0, FileBrowser.Result[0].Length - 4) + "csv";
+                string destination = FileBrowser.Result[0];
+                origin = origin.Replace("\\", "/");
+                destination = destination.Replace("\\", "/");
+
+                File.WriteAllText(Path.GetDirectoryName(Application.dataPath) + "/conversionData.csv", origin+","+destination);
+
+                System.Diagnostics.Process.Start("converter.exe");
             }
-            ExcelHelper.SaveExcel(xls, outputPath);
-            System.Diagnostics.Process.Start(outputPath);
+            catch (IOException)
+            {
+                print("Deu erro.");
+                Ultilities.PopUp("Arquivo em uso. Feche-o e tente novamente");
+            } 
         }
     }
 
 }
-/*
- Excel xls = new Excel();
-        ExcelTable table = new ExcelTable();
-        table.TableName = "test";
-        string outputPath = path;
-        xls.Tables.Add(table);
-        
-        for (int i = 0; i < titles.Length; i++)
-        {
-             xls.Tables[0].SetValue(1, 1+i, titles[i].Title);
-        }
-        for (int i = 0; i < content.Count; i++)
-        {
-            for (int j = 0; j < content[i].Count; j++)
-            {
-                ExcelTableCell cell = xls.Tables[0].SetValue(2+i, 1 + j, content[i][j].Value);
-                cell.Type = ExcelTableCellType.Popup;
-            }
-        }
 
-
-        xls.ShowLog();
-        if (Ultilities.IsFileLocked(path))
-        {
-            Ultilities.PopUp("O arquivo está aberto em outro programa. Feche-o e tente novamente");
-            return false;
-        }
-        LogFile.Log(null, "Indo salvar");
-        ExcelHelper.SaveExcel(xls, outputPath);         
-        System.Diagnostics.Process.Start(path);
-        return true;
- */

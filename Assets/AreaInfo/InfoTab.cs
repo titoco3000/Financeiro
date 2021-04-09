@@ -18,11 +18,14 @@ public class InfoTab : MonoBehaviour
         }
     }
 
-    public void HideAll()
+    public void HideAll(Infographic_Buttom exception = null)
     {
         foreach (var item in buttoms)
         {
-            item.Hide();
+            if(item != exception)
+            {
+                item.Hide();
+            }
         }
     }
 
